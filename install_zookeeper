@@ -1,0 +1,90 @@
+Require: Oracle Java install on each node.
+
+1, Config /etc/hosts file on each host.
+	Insert these lines in /etc/hosts on each host.
+	ip_nodex: Ip address of each node.	
+
+		ip_node1 node1
+		ip_node2 node2
+		ip_node3 node3
+
+2, Install Oracle Java on each node.	
+
+		apt-get update
+		add-apt-repository ppa:linuxuprising/java
+		apt-get install oracle-java12-installer -y
+
+	Check Java install successfull
+		java -version
+
+
+3, Download zookeeper and install. Perform on each node.
+	
+	- Select zookeeper version you want to install(It's up to you.).
+	 In this tutorial I use version 3.5.5 and download it to /opt
+
+		wget -P /opt http://mirror.downloadvn.com/apache/zookeeper/stable/apache-zookeeper-3.5.5-bin.tar.gz
+
+	- After finished download, extrac it.
+	- Prepare data directory: It's up to you.
+	  In this tutorial I make a diriectory: /data/zookeeperX
+
+	  	mkdir -p /data/zookeeperX (replace X by 1 or 2 or 3 depend on node.)
+
+
+4, Prepare zookeeper config file
+
+	Zookeeper use any file config that you select to start it. In this tutorial I make a file called:
+	zookeeper1.properties for node1, zookeeper2.properties for node2, zookeeper3.properties for node3
+	and put it in /opt/zookeeper_dir/conf
+
+		# The number of milliseconds of each tick
+		tickTime=2000
+		# The number of ticks that the initial 
+		# synchronization phase can take
+		initLimit=10
+		# The number of ticks that can pass between 
+		# sending a request and getting an acknowledgement
+		syncLimit=5
+		# the directory where the snapshot is stored.
+		# do not use /tmp for storage, /tmp here is just 
+		# example sakes.
+		dataDir=/data/zookeeperx
+		# the port at which the clients will connect
+		clientPort=2181
+		# the maximum number of client connections.
+		# increase this if you need to handle more clients
+		#maxClientCnxns=60
+		#
+		# Be sure to read the maintenance section of the 
+		# administrator guide before turning on autopurge.
+		#
+		# http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance
+		#
+		# The number of snapshots to retain in dataDir
+		#autopurge.snapRetainCount=3
+		# Purge task interval in hours
+		# Set to "0" to disable auto purge feature
+		#autopurge.puirgeInterval=1
+
+		server.1=node1:2888:3888
+		server.2=node2:2888:3888
+		server.3=node3:2888:3888
+
+		authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+		requireClientAuthScheme=sasl
+		jaasLoginRenew=3600000
+
+	Make a file called: myid and put it in zookeeper data directory. In this tutorial is /data/zookeeper
+
+		echo X > /data/zookeeper/myid (replace X by 1 or 2 or 3 depend on each node.)
+
+5, Start service and check status
+	
+	In order to start service, on each node we perform command like follow.
+
+		/opt/zookeeper_dir/bin/zkServer.sh start /opt/zookeeper_dir/conf/zookeeperX.properties (replace X by 1 or 2 or 3 depend on node you start service)
+
+	In order to check status service 
+
+		/opt/zookeeper_dir/bin/zkServer.sh status /opt/zookeeper_dir/conf/zookeeperX.properties (replace X by 1 or 2 or 3 depend on node you start service)

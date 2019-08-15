@@ -1,0 +1,115 @@
+Require: Oracle Java install on each node.
+
+Config_directory: /etc/kafka
+Bin_directory: /usr/bin
+
+1, Config /etc/hosts file on each host.
+	'''Insert these lines in /etc/hosts on each host.
+	ip_nodeX: Ip address of each node. ()	
+
+	### conten config ###
+
+		ip_node1 node1
+		ip_node2 node2
+		ip_node3 node3
+
+	
+	### end ####	
+
+2, Install steps confluent kafka on each node.
+
+	### commands to install ####
+		
+		sudo wget -qO - https://packages.confluent.io/deb/5.3/archive.key | sudo apt-key add -
+  		sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.3 stable main"
+  		sudo apt-get update && sudo apt-get install confluent-platform-2.12
+  	
+  	### end ####
+  		
+  	After these install steps, we have a directory $Config_directory consit config files and binary files was generate in $Bin_directory.
+
+3, Config and start Zookeeper
+	
+	Zookeeper use any file config that you select to start it. In this tutorial I make a file called:
+	zookeeper.properties and put it in $Config_directory. Perform these configs on all nodes
+
+
+	### content config ###
+
+		dataDir=/data/zookeeper
+
+		clientPort=2181
+
+		tickTime=2000
+
+		initLimit=5
+
+		syncLimit=2
+
+
+		server.1=node1:2666:3666
+
+		server.2=node2:2667:3667
+
+		server.3=node3:2668:3668
+
+
+		maxClientCnxns=0
+
+
+		authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+		requireClientAuthScheme=sasl
+		jaasLoginRenew=3600000
+
+	### end ###
+
+	Start Zookeeper: We should start Zookeeper in screen
+
+
+		zookeeper-server-start $Config_directory/zookeeper.properties
+
+4, Config Brokers
+	
+	Perform thes steps on all nodes
+
+	Make config file: kafka_server_jaas.conf
+	This file is support client authentication via SASL. SASL authentication can be enabled concurrently with SSL encryption.
+
+	### content config ###
+
+		KafkaServer {
+		org.apache.kafka.common.security.scram.ScramLoginModule required
+		username="admin"
+		password="admin-secret-passwd";
+		};
+ 
+ 	### end ###
+
+ 	Edit config file: server.properties
+
+ 	'''
+ 		broker.id=X (X depend on your nodes)
+
+ 		zookeeper.connect=node1:2181,node2:2181,node3:2181
+
+ 		listeners=SASL_PLAINTEXT://nodeX:9092
+		advertised.listeners=SASL_PLAINTEXT://nodeX:9092
+		security.inter.broker.protocol=SASL_PLAINTEXT
+		sasl.mechanism.inter.broker.protocol=SCRAM-SHA-256
+		sasl.enabled.mechanisms=SCRAM-SHA-256
+
+		# ACLs
+		authorizer.class.name=kafka.security.auth.SimpleAclAuthorizer
+		super.users=User:admin
+    '''                         
+
+    Config admin user for Brokers can login to zookeepr
+
+    	kafka-configs --zookeeper nodeX:2181 --alter --add-config  'SCRAM-SHA-256=[iterations=4096,password={admin-pwd}],SCRAM-SHA-512=[password={admin-pwd}]'
+ 		--entity-type users --entity-name admin
+ 		
+5, Start Brokers
+
+	We should start broker in screen	
+
+
