@@ -109,7 +109,55 @@ Bin_directory: /usr/bin
  		--entity-type users --entity-name admin
  		
 5, Start Brokers
-
+	
+	Perform on all nodes
 	We should start broker in screen	
 
+		export KAFKA_OPTS=-Djava.security.auth.login.config=$Config_directory/kafka_server_jaas.conf
+		kafka-server-start $Config_directory/server.properties
+
+6, Create user 
+	
+		kafka-configs --zookeeper node1:2181,node2:2181,node3:2181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password={pwd}],SCRAM-SHA-512=[password={pwd}]' --entity-type users --entity-name {user-name}
+
+7, Assign access right for user config
+		
+
+		kafka-acls --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{username} --operation All --topic {topic name}		
+
+8, Create user config for other conenctions, save in: user_config.properties file.
+		
+
+		sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+		username="{user name}" \
+		password="{password}";
+ 
+		security.protocol=SASL_PLAINTEXT
+		sasl.mechanism=SCRAM-SHA-256
+
+9, Create topic 
+		
+		kafka-topics --create --bootstrap-server node1:9092,node2:9092,node3:9092 --command-config {path to file}/user_config.properties --replication-factor 1 --partitions 1 --topic {topic name}
+
+10, Assign producer for user and start producer
+
+		kafka-acls.sh --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{user} --producer --topic {topic name}
+
+		kafka-console-producer --broker-list {hostname}:9092 --topic {topic name} --producer.config {path to file}/user_config.properties
+
+11, Assign consumer for user
+		
+		kafka-acls.sh --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{user name} --consumer --topic {topic name} --group {topic name or '*'}
+
+		kafka-console-consumer --bootstrap-server {host name}:9092 --topic {topic name} --from-beginning --consumer.config {path to file}/user_config.properties
+
+
+
+
+
+		
+
+
+		
+		
 
