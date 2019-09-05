@@ -1,0 +1,137 @@
+<Plugin java>
+  JVMARG "-Djava.class.path=/usr/share/collectd/java/collectd-api.jar:/usr/share/collectd/java/generic-jmx.jar"
+  LoadPlugin "org.collectd.java.GenericJMX"
+  <Plugin "GenericJMX">
+
+    <MBean "memory_pool">
+      ObjectName "java.lang:type=MemoryPool,*"
+      InstancePrefix "memory_pool-"
+      InstanceFrom "name"
+      <Value>
+        Type "memory"
+        Table true
+        Attribute "Usage"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-number-controller">
+      ObjectName "kafka.controller:type=KafkaController,name=ActiveControllerCount"
+      <Value>
+        Type "gauge"
+        Table false
+        Attribute "Value"
+        InstancePrefix "kafka-number-controller"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-all-messages">
+      ObjectName "kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec"
+      InstancePrefix "all"
+      <Value>
+        InstancePrefix "kafka-messages-in"
+        Type "counter"
+        Table false
+        Attribute "Count"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-topic-count">
+      ObjectName "kafka.controller:type=KafkaController,name=GlobalTopicCount"
+      <Value>
+        Type "gauge"
+        Table false
+        Attribute "Value"
+        InstancePrefix "kafka-topic-count"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-partition-count">
+      ObjectName "kafka.server:type=ReplicaManager,name=PartitionCount"
+      <Value>
+        Type "gauge"
+        Table false
+        Attribute "Value"
+        InstancePrefix "kafka-partition-count"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-offline-partition">
+      ObjectName "kafka.controller:type=KafkaController,name=OfflinePartitionsCount"
+      <Value>
+        Type "gauge"
+        Table false
+        Attribute "Value"
+        InstancePrefix "kafka-offline-partition"
+      </Value>
+    </MBean>
+   
+
+    <MBean "kafka_server-BrokerTopicMetrics_AllTopicsFailedProduceRequests">
+      ObjectName "kafka.server:type=BrokerTopicMetrics,name=FailedProduceRequestsPerSec"
+      <Value>
+        Type "counter"
+        InstancePrefix "server_broker_topics-AllTopicsFailedProduceRequests"
+        Table false
+        Attribute "Count"
+      </Value>
+    </MBean>
+
+    <MBean "kafka-UnderReplicatedPartitions">
+      ObjectName "kafka.server:type=ReplicaManager,name=UnderReplicatedPartitions"
+      <Value>
+        Type "gauge"
+        InstancePrefix "kafka-UnderReplicatedPartitions"
+        Table false
+        Attribute "Value"
+      </Value>
+    </MBean>
+
+    <MBean "kafka_server-ReplicaFetcherManager_MaxLag">
+      ObjectName "kafka.server:type=ReplicaFetcherManager,name=MaxLag,clientId=Replica"
+      <Value>
+        Type "gauge"
+        InstancePrefix "server_replica_fetcher-MaxLag"
+        Table false
+        Attribute "Value"
+      </Value>
+    </MBean>
+
+    <MBean "kafka_server-ReplicaFetcherManager_MaxLag">
+      ObjectName "kafka.server:type=ReplicaFetcherManager,name=MaxLag,clientId=Replica"
+      <Value>
+        Type "gauge"
+        InstancePrefix "server_replica_fetcher-MaxLag"
+        Table false
+        Attribute "Value"
+      </Value>
+    </MBean>
+
+    <MBean "kafka_log-LogFlushStats_LogFlush">
+      ObjectName "kafka.log:type=LogFlushStats,name=LogFlushRateAndTimeMs"
+      <Value>
+        Type "counter"
+        InstancePrefix "log-LogFlushes"
+        Table false
+        Attribute "Count"
+      </Value>
+    </MBean>
+
+    <Connection>
+      Host "localhost"
+      ServiceURL "service:jmx:rmi:///jndi/rmi://localhost:1099/jmxrmi"
+      Collect "memory_pool"
+      Collect "kafka-all-messages"
+      Collect "kafka-topic-count"
+      Collect "kafka-partition-count"
+      Collect "kafka-offline-partition"
+      Collect "kafka_server-BrokerTopicMetrics_AllTopicsFailedProduceRequests"
+      Collect "kafka-UnderReplicatedPartitions"
+      Collect "kafka_server-ReplicaFetcherManager_MaxLag"
+      Collect "kafka-number-controller"
+      Collect "kafka_server-ReplicaFetcherManager_MaxLag"
+      Collect "kafka_log-LogFlushStats_LogFlush"
+
+    </Connection>
+
+  </Plugin>
+</Plugin>   
