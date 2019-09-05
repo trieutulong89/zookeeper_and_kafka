@@ -1,0 +1,115 @@
+ Install and configure graphite and grafana on ubuntu 160.4
+
+1, Install graphite, apache2, mysql-server
+
+    apt-get install graphite-web graphite-carbon mysql-server python-mysqldb python-pymysql apache2 libapache2-mod-wsgi apt-transport-https ssl-cert
+
+2, Create a MySQL User and Database for Graphite
+
+    CREATE USER 'graphite'@'localhost' IDENTIFIED BY 'password';
+    CREATE DATABASE IF NOT EXISTS `graphite` DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+    GRANT ALL PRIVILEGES ON `graphite`.* TO 'graphite'@'localhost';
+
+3, Config /etc/graphite/local_settings.py
+    
+    SECRET_KEY = 'UNSAFE_DEFAULT'
+    TIME_ZONE = 'Asia/Ho_Chi_Minh'
+
+    DATABASES = {
+    'default': {
+        'NAME': 'graphite',
+        'ENGINE': 'django.db.backends.mysql',
+        'USER': 'graphite',
+        'PASSWORD': 'password',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+        'STORAGE_ENGINE': 'INNODB'
+       }
+    }
+
+4, Create database schema
+    graphite-manage migrate
+
+5, Config /etc/default/graphite-carbon
+    
+    CARBON_CACHE_ENABLED=true   
+
+6, Config /etc/carbon/storage-schemas.conf
+
+    [statusengine]
+    pattern = ^statusengine\.
+    retentions = 60:90d
+
+    [carbon]
+    pattern = ^carbon\.
+    retentions = 60:90d
+
+    [default_1min_for_1day]
+    pattern = .*
+    retentions = 60s:1d
+
+7, systemctl start carbon-cache
+8, cp /usr/share/graphite-web/apache2-graphite.conf /etc/apache2/sites-available
+  Edit port 80 to 8888 (It is to you)
+  Add port 8888 to: /etc/apache2/ports.conf
+    Listen 80
+    Listen 8888
+
+    <IfModule ssl_module>
+            Listen 443
+    </IfModule>
+
+    <IfModule mod_gnutls.c>
+            Listen 443
+    </IfModule>
+
+a2ensite apache2-graphite
+systemctl restart apache2
+
+
+Install Grafana
+
+Before you start! Please take a look at the official documentation! http://docs.grafana.org/installation/debian/
+
+echo "deb https://packagecloud.io/grafana/stable/debian/ jessie main" > /etc/apt/sources.list.d/grafana.list
+curl https://packagecloud.io/gpg.key | apt-key add -
+apt-get update
+apt-get install grafana
+
+systemctl daemon-reload
+systemctl start grafana-server
+systemctl enable grafana-server
+
+Configure Apache as reverse proxy for Grafana
+
+Create the file /etc/apache2/sites-available/apache2-grafana.conf with the following content:
+
+<VirtualHost *:80>
+    ServerName statusengine.org
+
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule (.*) https://%{SERVER_NAME}/$1 [R,L]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    SSLEngine On
+    SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
+    SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+</VirtualHost>
+
+Notice: We added an automatically redirect from http to https using self-signed certificates.
+
+Enable the new configuration
+
+a2ensite apache2-grafana
+a2enmod proxy
+a2enmod proxy_http
+a2enmod ssl
+a2enmod xml2enc
+a2enmod rewrite
+systemctl restart apache2
