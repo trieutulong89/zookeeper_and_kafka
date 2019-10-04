@@ -4,11 +4,11 @@ Config_directory: /etc/kafka
 Bin_directory: /usr/bin
 
 1, Config /etc/hosts file on each host.
-	'''Insert these lines in /etc/hosts on each host.
+	Insert these lines in /etc/hosts on each host.
 	ip_nodeX: Ip address of each node. ()	
 
 	### conten config ###
-
+	
 		ip_node1 node1
 		ip_node2 node2
 		ip_node3 node3
@@ -63,10 +63,29 @@ Bin_directory: /usr/bin
 
 	### end ###
 
-	Start Zookeeper: We should start Zookeeper in screen
+	
+
+	Make "zookeeper.service" file and put in "/lib/systemd/system" and symlink to "/etc/systemd/system/multi-user.target.wants". Perform on all nodes
 
 
-		zookeeper-server-start $Config_directory/zookeeper.properties
+		[Unit]
+		Description=Apache Zookeeper server (Kafka)
+		Documentation=http://zookeeper.apache.org
+		Requires=network.target remote-fs.target
+		After=network.target remote-fs.target
+
+		[Service]
+		Type=simple
+		User=root
+		Group=root
+		ExecStart=/usr/bin/zookeeper-server-start /etc/kafka/zookeeper.properties
+		ExecStop=/usr/bin/zookeeper-server-stop
+
+		[Install]
+		WantedBy=multi-user.target
+
+	Start zookeeper service: systemctl start zookeeper	
+
 
 4, Config Brokers
 	
@@ -87,7 +106,8 @@ Bin_directory: /usr/bin
 
  	Edit config file: server.properties
 
- 	'''
+ 	### content config ###
+
  		broker.id=X (X depend on your nodes)
 
  		zookeeper.connect=node1:2181,node2:2181,node3:2181
@@ -107,15 +127,45 @@ Bin_directory: /usr/bin
 
     	kafka-configs --zookeeper node1:2181,node2:2181,node3:2181 --alter --add-config  'SCRAM-SHA-256=[iterations=4096,password={admin-pwd}],SCRAM-SHA-512=[password={admin-pwd}]'
  		--entity-type users --entity-name admin
- 		
+ 	
+ 	### end ###
+
+ 	Make kafka.env in /etc/kafka with following contents.
+
+ 		JMX_PORT=1099  -----> export metric to jmx via port 1099
+
+		KAFKA_OPTS="-Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf"  ---> Load config in this file
+
+		KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=hostname -Djava.net.preferIPv4Stack=true" ----> enable JMX
+
+
+
+
+
 5, Start Brokers
+	Make "kafka.service" file and put it in "/lib/systemd/system" then symlink it to "/etc/systemd/system/multi-user.target.wants"
+
+		[Unit]
+		Description=Apache Zookeeper server (Kafka)
+		Documentation=http://zookeeper.apache.org
+		Requires=network.target remote-fs.target
+		After=network.target zookeeper.service
+
+		[Service]
+		Type=simple
+		User=root
+		Group=root
+		EnvironmentFile=/etc/kafka/kafka.env
+
+		ExecStart=/usr/bin/kafka-server-start /etc/kafka/server.properties
+		ExecStop=/usr/bin/kafka-server-stop
+
+		[Install]
+		WantedBy=multi-user.target
+
+	Start service: systemctl start kafka
+
 	
-	Perform on all nodes
-	We should start broker in screen	
-
-		export KAFKA_OPTS=-Djava.security.auth.login.config=$Config_directory/kafka_server_jaas.conf
-		kafka-server-start $Config_directory/server.properties
-
 6, Create user 
 	
 		kafka-configs --zookeeper node1:2181,node2:2181,node3:2181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password={pwd}],SCRAM-SHA-512=[password={pwd}]' --entity-type users --entity-name {user-name}
