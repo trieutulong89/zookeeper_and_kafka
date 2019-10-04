@@ -5,26 +5,21 @@ Bin_directory: /usr/bin
 
 1, Config /etc/hosts file on each host.
 	Insert these lines in /etc/hosts on each host.
-	ip_nodeX: Ip address of each node. ()	
+	ip_nodeX: Ip address of each node.
 
-	### conten config ###
-	
+	'''
 		ip_node1 node1
 		ip_node2 node2
 		ip_node3 node3
-
-	
-	### end ####	
+	'''	
 
 2, Install steps confluent kafka on each node.
 
-	### commands to install ####
-		
+	'''		
 		sudo wget -qO - https://packages.confluent.io/deb/5.3/archive.key | sudo apt-key add -
   		sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.3 stable main"
-  		sudo apt-get update && sudo apt-get install confluent-platform-2.12
-  	
-  	### end ####
+  		sudo apt-get update && sudo apt-get install confluent-platform-2.12 	
+  	'''
   		
   	After these install steps, we have a directory $Config_directory consit config files and binary files was generate in $Bin_directory.
 
@@ -33,9 +28,7 @@ Bin_directory: /usr/bin
 	Zookeeper use any file config that you select to start it. In this tutorial I make a file called:
 	zookeeper.properties and put it in $Config_directory. Perform these configs on all nodes
 
-
-	### content config ###
-
+	'''
 		dataDir=/data/zookeeper
 
 		clientPort=2181
@@ -46,45 +39,22 @@ Bin_directory: /usr/bin
 
 		syncLimit=2
 
-
 		server.1=node1:2666:3666
 
 		server.2=node2:2667:3667
 
 		server.3=node3:2668:3668
 
-
 		maxClientCnxns=0
-
 
 		authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
 		requireClientAuthScheme=sasl
 		jaasLoginRenew=3600000
-
-	### end ###
-
-	
-
-	Make "zookeeper.service" file and put in "/lib/systemd/system" and symlink to "/etc/systemd/system/multi-user.target.wants". Perform on all nodes
+	'''	
 
 
-		[Unit]
-		Description=Apache Zookeeper server (Kafka)
-		Documentation=http://zookeeper.apache.org
-		Requires=network.target remote-fs.target
-		After=network.target remote-fs.target
 
-		[Service]
-		Type=simple
-		User=root
-		Group=root
-		ExecStart=/usr/bin/zookeeper-server-start /etc/kafka/zookeeper.properties
-		ExecStop=/usr/bin/zookeeper-server-stop
-
-		[Install]
-		WantedBy=multi-user.target
-
-	Start zookeeper service: systemctl start zookeeper	
+	Start zookeeper service: systemctl start confluent-zookeeper.service
 
 
 4, Config Brokers
@@ -94,7 +64,7 @@ Bin_directory: /usr/bin
 	Make config file: kafka_server_jaas.conf
 	This file is support client authentication via SASL. SASL authentication can be enabled concurrently with SSL encryption.
 
-	### content config ###
+	'''
 
 		KafkaServer {
 		org.apache.kafka.common.security.scram.ScramLoginModule required
@@ -102,11 +72,11 @@ Bin_directory: /usr/bin
 		password="admin-secret-passwd";
 		};
  
- 	### end ###
+ 	'''
 
  	Edit config file: server.properties
 
- 	### content config ###
+ 	'''
 
  		broker.id=X (X depend on your nodes)
 
@@ -124,79 +94,77 @@ Bin_directory: /usr/bin
     '''                         
 
     Config admin user for Brokers can login to zookeepr
-
+    
+    '''
     	kafka-configs --zookeeper node1:2181,node2:2181,node3:2181 --alter --add-config  'SCRAM-SHA-256=[iterations=4096,password={admin-pwd}],SCRAM-SHA-512=[password={admin-pwd}]'
  		--entity-type users --entity-name admin
+ 	'''
  	
- 	### end ###
 
  	Make kafka.env in /etc/kafka with following contents.
-
+ 	
+ 	'''
  		JMX_PORT=1099  -----> export metric to jmx via port 1099
-
 		KAFKA_OPTS="-Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf"  ---> Load config in this file
-
 		KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=hostname -Djava.net.preferIPv4Stack=true" ----> enable JMX
-
+	'''
 
 
 
 
 5, Start Brokers
-	Make "kafka.service" file and put it in "/lib/systemd/system" then symlink it to "/etc/systemd/system/multi-user.target.wants"
+	
+	Add more config to confluent-kafka.service
 
-		[Unit]
-		Description=Apache Zookeeper server (Kafka)
-		Documentation=http://zookeeper.apache.org
-		Requires=network.target remote-fs.target
-		After=network.target zookeeper.service
-
-		[Service]
-		Type=simple
-		User=root
-		Group=root
-		EnvironmentFile=/etc/kafka/kafka.env
-
+	'''
 		ExecStart=/usr/bin/kafka-server-start /etc/kafka/server.properties
-		ExecStop=/usr/bin/kafka-server-stop
-
-		[Install]
-		WantedBy=multi-user.target
-
-	Start service: systemctl start kafka
+	'''	
+	
+	Start service: systemctl start confluent-kafka.service
 
 	
 6, Create user 
 	
+	'''
 		kafka-configs --zookeeper node1:2181,node2:2181,node3:2181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password={pwd}],SCRAM-SHA-512=[password={pwd}]' --entity-type users --entity-name {user-name}
-
+	'''
+		
 7, Assign access right for user config
 		
-
+	'''
 		kafka-acls --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{username} --operation All --topic {topic name}		
+	'''
+
 
 8, Create user config for other conenctions, save in: user_config.properties file.
 		
-
+	'''
 		sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
 		username="{user name}" \
 		password="{password}";
  
 		security.protocol=SASL_PLAINTEXT
 		sasl.mechanism=SCRAM-SHA-256
+	'''
 
 9, Create topic 
-		
+	
+	'''	
 		kafka-topics --create --bootstrap-server node1:9092,node2:9092,node3:9092 --command-config $Config_directory/user_config.properties --replication-factor 1 --partitions 1 --topic {topic name}
-
+	'''
+		
 10, Assign producer for user and start producer
-
+	
+	'''
 		kafka-acls.sh --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{user} --producer --topic {topic name}
 
 		kafka-console-producer --broker-list node1:9092,node2:9092,node3:9092 --topic {topic name} --producer.config $Config_directory/user_config.properties
+	'''
 
 11, Assign consumer for user
-		
+	
+	'''	
 		kafka-acls.sh --authorizer-properties zookeeper.connect=node1:2181,node2:2181,node3:2181 --add --allow-principal User:{user name} --consumer --topic {topic name} --group {topic name or '*'}
 
 		kafka-console-consumer --bootstrap-server node1:9092,node2:2181,node3:2181 --topic {topic name} --from-beginning --consumer.config $Config_directory/user_config.properties
+	'''
